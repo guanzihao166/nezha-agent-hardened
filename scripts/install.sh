@@ -28,6 +28,13 @@ esac
 if command -v systemctl >/dev/null 2>&1; then
     systemctl stop 'nezha-agent*' 2>/dev/null || true
     systemctl disable 'nezha-agent*' 2>/dev/null || true
+    rm -f /etc/systemd/system/nezha-agent.service \
+        /etc/systemd/system/nezha-agent*.service \
+        /lib/systemd/system/nezha-agent.service \
+        /lib/systemd/system/nezha-agent*.service \
+        /usr/lib/systemd/system/nezha-agent.service \
+        /usr/lib/systemd/system/nezha-agent*.service
+    systemctl daemon-reload
 fi
 
 if [ "$OS" = "Darwin" ] && [ -f /Library/LaunchDaemons/nezha-agent.plist ]; then

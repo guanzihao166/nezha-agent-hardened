@@ -12,6 +12,7 @@ $service = Get-Service -Name nezha-agent -ErrorAction SilentlyContinue
 if ($service) {
     Stop-Service -Name nezha-agent -Force -ErrorAction SilentlyContinue
     Set-Service -Name nezha-agent -StartupType Disabled -ErrorAction SilentlyContinue
+    & sc.exe delete nezha-agent | Out-Null
     Start-Sleep -Seconds 1
 }
 Get-Process -Name nezha-agent -ErrorAction SilentlyContinue | Stop-Process -Force
