@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -36,7 +35,6 @@ import (
 	"github.com/nezhahq/agent/pkg/fsnotifyx"
 	"github.com/nezhahq/agent/pkg/logger"
 	"github.com/nezhahq/agent/pkg/monitor"
-	"github.com/nezhahq/agent/pkg/processgroup"
 	"github.com/nezhahq/agent/pkg/util"
 	utlsx "github.com/nezhahq/agent/pkg/utls"
 	pb "github.com/nezhahq/agent/proto"
@@ -775,57 +773,6 @@ func handleHttpGetTaskWithConfig(gates taskFeatureGates, task *pb.Task, result *
 		// HTTP 请求失败
 		result.Data = err.Error()
 	}
-}
-
-func handleCommandTaskWithConfig(gates taskFeatureGates, task *pb.Task, result *pb.TaskResult) {
-	if gates.disableCommandExecute {
-		result.Data = "此 Agent 已禁止命令执行"
-		return
-	}
-	startedAt := time.Now()
-	endCh := make(chan struct{})
-	pg, err := processgroup.NewProcessExitGroup()
-	if err != nil {
-		// 进程组创建失败，直接退出
-		result.Data = err.Error()
-		return
-	}
-	timeout := time.NewTimer(time.Hour * 2)
-	cmd := processgroup.NewCommand(task.GetData())
-	var b bytes.Buffer
-	cmd.Stdout = &b
-	cmd.Env = os.Environ()
-	if err = cmd.Start(); err != nil {
-		// Start failed: no process to wait on and the timeout goroutine has
-		// not been launched yet, so just release the timer before returning,
-		// otherwise it lingers for 2h.
-		timeout.Stop()
-		result.Data = err.Error()
-		return
-	}
-	pg.AddProcess(cmd)
-	go func() {
-		select {
-		case <-timeout.C:
-			result.Data = "任务执行超时\n"
-			pg.Dispose()
-		case <-endCh:
-			timeout.Stop()
-		}
-	}()
-	if err = cmd.Wait(); err != nil {
-		result.Data += fmt.Sprintf("%s\n%s", b.String(), err.Error())
-	} else {
-		result.Data = b.String()
-		result.Successful = true
-	}
-	// Always signal completion so the timeout goroutine exits and stops the
-	// timer, regardless of whether the command succeeded or failed. The
-	// previous code only closed endCh on success, stranding one goroutine and
-	// one 2h timer for every non-zero-exit command.
-	close(endCh)
-	pg.Dispose()
-	result.Delay = float32(time.Since(startedAt).Seconds())
 }
 
 func handleReportConfigTaskWithConfig(config *model.AgentConfig, result *pb.TaskResult) {

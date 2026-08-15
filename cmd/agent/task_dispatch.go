@@ -52,7 +52,7 @@ func (e agentTaskExecution) dispatch(task *pb.Task) {
 		// after waiting behind applyPendingReload.
 		e.runAgentTask(e.parent, nil, task)
 		return
-	case model.TaskTypeTerminalGRPC, model.TaskTypeNAT, model.TaskTypeFM, model.TaskTypeFsTransfer:
+	case model.TaskTypeNAT:
 		config := loadRuntimeConfig()
 		if e.session != nil {
 			e.session.startLongLivedStreamTask(func(taskContext context.Context) {
@@ -124,34 +124,17 @@ func doTaskWithSnapshot(
 		handleIcmpPingTaskWithConfig(gates, task, result)
 	case model.TaskTypeTCPPing:
 		handleTcpPingTaskWithConfig(gates, task, result)
-	case model.TaskTypeCommand:
-		handleCommandTaskWithConfig(gates, task, result)
 	case model.TaskTypeUpgrade:
 		handleUpgradeTaskWithConfig(updateConfigTupleFrom(config), gates)
-	case model.TaskTypeTerminalGRPC:
-		handleTerminalTaskWithConfig(parent, gates, task)
-		return nil
 	case model.TaskTypeNAT:
 		handleNATTaskWithConfig(parent, gates, task)
 		return nil
-	case model.TaskTypeFM:
-		handleFMTaskWithConfig(parent, gates, task)
-		return nil
 	case model.TaskTypeReportConfig:
 		handleReportConfigTaskWithConfig(config, result)
-	case model.TaskTypeExec:
-		handleExecTaskWithConfig(gates, task, result)
-	case model.TaskTypeFsList:
-		handleFsListTaskWithConfig(gates, task, result)
-	case model.TaskTypeFsRead:
-		handleFsReadTaskWithConfig(gates, task, result)
-	case model.TaskTypeFsWrite:
-		handleFsWriteTaskWithConfig(gates, task, result)
-	case model.TaskTypeFsDelete:
-		handleFsDeleteTaskWithConfig(gates, task, result)
-	case model.TaskTypeFsTransfer:
-		handleFsTransferTaskWithConfig(parent, gates, task)
-		return nil
+	case model.TaskTypeCommand, model.TaskTypeTerminal, model.TaskTypeTerminalGRPC, model.TaskTypeFM,
+		model.TaskTypeExec, model.TaskTypeFsList, model.TaskTypeFsRead,
+		model.TaskTypeFsWrite, model.TaskTypeFsDelete, model.TaskTypeFsTransfer:
+		result.Data = "This hardened Agent does not support terminal, command execution, or file operations"
 	case model.TaskTypeKeepalive:
 	default:
 		printf("不支持的任务: %v", task)
